@@ -2524,7 +2524,7 @@ function updateTokenBar() {
   msg += ` = Model max tokens: ${al(limit.toLocaleString())}\n`;
   msg += `     - This message: ${al(direct.toLocaleString())}\n`;
   msg += `          - History: ${al(history.toLocaleString())}\n`;
-  msg += `     - Max response: ${al(responseMax > 0 ? responseMax.toLocaleString() : '0 (unlim)')}`;
+  msg += `     - Max response: ${responseMax > 0 ? al(responseMax.toLocaleString()) : 'unlimited'}`;
   tip.textContent = msg;
   const color = (limit && remaining < 0) ? 'tp-danger' : (remaining < limit / 4 ? 'tp-warn' : '');
   const wasShown = tip.classList.contains('show'); // hover state is owned by wireTokenTip — don't force-show
