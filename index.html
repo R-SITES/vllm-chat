@@ -97,6 +97,11 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .bubble pre .try-btn:hover{opacity:1;color:var(--green)}
 .bubble pre[data-ishtml] .copy-btn{display:none}
 .bubble pre[data-ishtml] .try-btn{display:inline-block}
+.bubble pre .toggle-btn{background:var(--bg3);border:1px solid var(--border);color:var(--dim);padding:2px 7px;border-radius:4px;font-size:12px;line-height:1;cursor:pointer;opacity:.7;transition:all .15s;margin-left:6px}
+.bubble pre .toggle-btn:hover{opacity:1;color:var(--accent)}
+.bubble pre.collapsed code{display:none}
+.bubble pre.collapsed{padding:14px 12px;overflow:hidden}
+.bubble pre.collapsed .pre-btns-bottom{display:none}
 .msg-main{display:flex;flex-direction:column;align-items:flex-start;max-width:90%;min-width:0}
 .msg.user .msg-main{align-items:flex-end}
 .msg.user .msg-main .bubble{max-width:100%}
@@ -159,6 +164,18 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .input-wrap{flex:1;position:relative}
 #chatInput{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:10px 16px;color:var(--text);font-size:14px;font-family:var(--font);resize:none;outline:none;min-height:42px;max-height:200px;line-height:1.4;transition:border-color .15s}
 #chatInput:focus{border-color:var(--accent)}
+/* ── Token context bar (Big AGI TokenProgressbar port) ── */
+.token-progress{position:absolute;left:1px;right:1px;bottom:1px;height:8px;overflow:hidden;border-radius:0 0 19px 19px;cursor:help;z-index:5}
+.token-progress .tp-seg{position:absolute;bottom:0;height:4px}
+.token-progress.overflow .tp-seg{height:8px}
+.tp-history{background:rgba(88,166,255,.35)}
+.tp-direct{background:var(--accent)}
+.tp-response{background:rgba(139,148,158,.5)}
+.tp-overflow{background:var(--red)}
+.tokenTip{position:absolute;right:0;bottom:calc(100% + 10px);z-index:70;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-family:var(--mono);font-size:12px;line-height:1.7;white-space:pre;box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:auto;opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;max-width:340px}
+.tokenTip.show{opacity:1;transform:translateY(0)}
+.tokenTip.tp-warn{border-color:rgba(210,153,34,.6);background:#1c1a15}
+.tokenTip.tp-danger{border-color:var(--red);background:#1c1214}
 /* ── Attachments (paperclip) ── */
 .clip-btn{width:42px;height:42px;flex-shrink:0;border-radius:50%;border:1px solid var(--border);background:var(--bg3);color:var(--dim);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
 .clip-btn:hover{border-color:var(--accent);color:var(--accent)}
@@ -231,7 +248,7 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
     <button class="new-chat-btn" onclick="newChat();toggleSidebar();" title="Start a new chat">＋ New Chat</button>
   </div>
   <div class="sidebar-body" id="chatHistory"></div>
-  <div class="sidebar-footer">vLLM Chat v1.2.0</div>
+  <div class="sidebar-footer">vLLM Chat v1.3.0</div>
 </div>
 
 <div class="header">
@@ -311,6 +328,8 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
     <input type="file" id="fileInput" multiple accept="image/*,.txt,.csv,.json,.md,.pdf,.xlsx,.xls,.docx" style="display:none" onchange="pickFiles(this)">
     <div class="input-wrap">
       <textarea id="chatInput" placeholder="Type a message..." rows="1" onkeydown="handleKey(event)"></textarea>
+      <div class="token-progress" id="tokenProgress" style="display:none"></div>
+      <div class="tokenTip" id="tokenTip"></div>
     </div>
     <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send">➤</button>
     <button class="stop-btn" id="stopBtn" onclick="stopGeneration()" style="display:none" title="Stop">■</button>
@@ -2321,6 +2340,8 @@ let API_URL = localStorage.getItem('chat_api_url') || 'http://localhost:8000';
 let SYSTEM_PROMPT = localStorage.getItem('chat_system_prompt') || '';
 let MAX_TOKENS = parseInt(localStorage.getItem('chat_max_tokens') || '0');
 if (isNaN(MAX_TOKENS) || MAX_TOKENS < 0) MAX_TOKENS = 0;
+let contextLimit = parseInt(localStorage.getItem('chat_context_limit') || '180000'); // model max ctx (vLLM /v1/models max_model_len when reported)
+if (isNaN(contextLimit) || contextLimit <= 0) contextLimit = 180000;
 let TEMPERATURE = parseFloat(localStorage.getItem('chat_temperature') || '0.7');
 let TOP_P = parseFloat(localStorage.getItem('chat_top_p') || '0.9');
 let currentModel = localStorage.getItem('chat_current_model') || '';
@@ -2428,12 +2449,97 @@ document.addEventListener('DOMContentLoaded', () => {
   if (currentChatId) {
     loadConversation(currentChatId);
   }
+  wireTokenTip();
+  updateTokenBar();
 });
 
 function autoResize(e) {
   const el = e.target;
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+  updateTokenBar();
+}
+
+// ── Token context bar (Big AGI TokenProgressbar + TokenTooltip port) ──
+function estTokens(text, divisor) {
+  if (!text) return 0;
+  return Math.ceil(String(text).length / divisor);
+}
+function historyTokensEstimate() {
+  let t = 0;
+  if (SYSTEM_PROMPT) t += estTokens(SYSTEM_PROMPT, 4);
+  for (const m of conversationHistory) {
+    const c = (typeof m.content === 'string') ? m.content : '';
+    if (m.role === 'assistant') {
+      t += estTokens(m.thinking, 4);   // reasoning prose ~4 chars/token
+      t += estTokens(c, 2.6);          // content (HTML/code heavy) ~2.6
+    } else {
+      t += estTokens(c, 4);
+    }
+  }
+  return t;
+}
+function updateTokenBar() {
+  const bar = document.getElementById('tokenProgress');
+  const tip = document.getElementById('tokenTip');
+  if (!bar || !tip) return;
+  const input = document.getElementById('chatInput');
+  const direct = input ? Math.ceil((input.value || '').length / 4) : 0;
+  const history = historyTokensEstimate();
+  const responseMax = MAX_TOKENS; // 0 = unlimited (max_tokens omitted)
+  const limit = contextLimit;
+  if (!(limit > 0) || (!direct && !history && !responseMax)) {
+    bar.style.display = 'none';
+    tip.classList.remove('show');
+    return;
+  }
+  bar.style.display = 'block';
+  let historyPct = 100 * history / limit;
+  let responsePct = 100 * responseMax / limit;
+  let directPct = 100 * direct / limit;
+  const totalPct = historyPct + responsePct + directPct;
+  const isOverflow = totalPct >= 100;
+  if (isOverflow) {
+    const scale = Math.pow(100 / totalPct, 2); // make room for the overflow segment
+    historyPct *= scale; responsePct *= scale; directPct *= scale;
+  }
+  bar.classList.toggle('overflow', isOverflow);
+  let html = '';
+  if (historyPct > 0) html += `<div class="tp-seg tp-history" style="width:${historyPct}%"></div>`;
+  if (directPct > 0) html += `<div class="tp-seg tp-direct" style="left:${historyPct}%;width:${directPct}%"></div>`;
+  if (responsePct > 0) {
+    const rl = isOverflow ? (historyPct + directPct) : (100 - responsePct);
+    html += `<div class="tp-seg tp-response" style="left:${rl}%;width:${responsePct}%"></div>`;
+  }
+  if (isOverflow) html += `<div class="tp-seg tp-overflow" style="left:${historyPct + directPct + responsePct}%"></div>`;
+  bar.innerHTML = html;
+  // hover panel — Big AGI tokenCountsMathAndMessage port (no pricing: local vLLM)
+  const usedInput = direct + history;
+  const usedMax = usedInput + responseMax;
+  const remaining = limit - usedMax;
+  const gteLimit = (remaining <= 0 && limit > 0);
+  const al = (n) => String(n).padStart(8);
+  let msg = gteLimit ? '⚠️ ' : '';
+  msg += `▶ ${Math.abs(remaining).toLocaleString()} ${remaining >= 0 ? 'available' : 'excess'} message tokens\n\n`;
+  msg += ` = Model max tokens: ${al(limit.toLocaleString())}\n`;
+  msg += `     - This message: ${al(direct.toLocaleString())}\n`;
+  msg += `          - History: ${al(history.toLocaleString())}\n`;
+  msg += `     - Max response: ${al(responseMax > 0 ? responseMax.toLocaleString() : '0 (unlim)')}`;
+  tip.textContent = msg;
+  const color = (limit && remaining < 0) ? 'tp-danger' : (remaining < limit / 4 ? 'tp-warn' : '');
+  const wasShown = tip.classList.contains('show'); // hover state is owned by wireTokenTip — don't force-show
+  tip.className = 'tokenTip' + (color ? ' ' + color : '');
+  if (wasShown) tip.classList.add('show');
+}
+function wireTokenTip() {
+  const bar = document.getElementById('tokenProgress');
+  const tip = document.getElementById('tokenTip');
+  if (!bar || !tip) return;
+  let hideTimer = null;
+  bar.addEventListener('mouseenter', () => { clearTimeout(hideTimer); updateTokenBar(); tip.classList.add('show'); });
+  bar.addEventListener('mouseleave', () => { hideTimer = setTimeout(() => tip.classList.remove('show'), 150); });
+  tip.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+  tip.addEventListener('mouseleave', () => tip.classList.remove('show'));
 }
 
 // ---- Stats UI ----
@@ -2490,10 +2596,11 @@ function saveSettings() {
   localStorage.setItem('chat_api_url', API_URL);
   localStorage.setItem('chat_system_prompt', SYSTEM_PROMPT);
   localStorage.setItem('chat_max_tokens', MAX_TOKENS);
+  updateTokenBar();
   localStorage.setItem('chat_temperature', TEMPERATURE);
   localStorage.setItem('chat_top_p', TOP_P);
   if (currentChatId) saveCurrentChat();   // settings prompt edits stick to this thread
-  updateSysPromptBar();
+  updateSysPromptBar(); updateTokenBar();
   closeSettings();
   showToast('Settings saved');
 }
@@ -2516,14 +2623,14 @@ function sysPromptInput(el) {
   SYSTEM_PROMPT = el.value;
   localStorage.setItem('chat_system_prompt', SYSTEM_PROMPT);
   if (currentChatId) saveCurrentChat();   // stick to this thread
-  updateSysPromptBar();
+  updateSysPromptBar(); updateTokenBar();
 }
 function clearSysPrompt() {
   SYSTEM_PROMPT = '';
   localStorage.setItem('chat_system_prompt', '');
   document.getElementById('sysPromptInput').value = '';
   if (currentChatId) saveCurrentChat();   // stick to this thread
-  updateSysPromptBar();
+  updateSysPromptBar(); updateTokenBar();
 }
 function updateSysPromptBar() {
   const status = document.getElementById('sysPromptStatus');
@@ -2570,10 +2677,11 @@ function formatDate(ts) {
 function newChat() {
   currentChatId = null;
   conversationHistory = [];
+  updateTokenBar();
   resetJumpIndex();
   // New threads inherit the last known system prompt (2026-08-18)
   SYSTEM_PROMPT = localStorage.getItem('chat_system_prompt') || '';
-  updateSysPromptBar();
+  updateSysPromptBar(); updateTokenBar();
   document.getElementById('messages').innerHTML = '<div class="empty-state" id="emptyState"><div class="icon">💬</div><p>Send a message to start chatting</p></div>';
   loadHistory();
 }
@@ -2611,13 +2719,14 @@ function loadConversation(chatId) {
   currentChatId = chatId;
   localStorage.setItem('chat_current_id', chatId);
   conversationHistory = JSON.parse(JSON.stringify(chat.messages || []));
+  updateTokenBar();
   // Per-thread system prompt: the thread's own if it has one, else last-known.
   // The global always tracks the ACTIVE thread so a new chat inherits it.
   SYSTEM_PROMPT = (chat.systemPrompt !== undefined && chat.systemPrompt !== null)
     ? chat.systemPrompt
     : (localStorage.getItem('chat_system_prompt') || '');
   localStorage.setItem('chat_system_prompt', SYSTEM_PROMPT);
-  updateSysPromptBar();
+  updateSysPromptBar(); updateTokenBar();
   renderAllMessages();
   loadHistory();
 }
@@ -2640,6 +2749,11 @@ function loadModels() {
         sel.innerHTML = models.map(m => `<option value="${escAttr(m.id)}">${escHtml(m.id)}</option>`).join('');
         currentModel = models[0].id;
         localStorage.setItem('chat_current_model', currentModel);
+        const mml = models[0].max_model_len || models[0].context_length;
+        if (mml > 0 && mml !== contextLimit) {
+          contextLimit = mml;
+          localStorage.setItem('chat_context_limit', contextLimit);
+        }
         document.getElementById('modelLabel').textContent = currentModel;
         document.getElementById('statusDot').className = 'status-dot ok';
         document.getElementById('statusText').textContent = 'Connected';
@@ -2649,6 +2763,7 @@ function loadModels() {
         document.getElementById('statusDot').className = 'status-dot ok';
         document.getElementById('statusText').textContent = 'Connected (no models)';
       }
+      updateTokenBar();
     }).catch(() => {
       document.getElementById('statusDot').className = 'status-dot err';
       document.getElementById('statusText').textContent = 'API unavailable';
@@ -2679,6 +2794,7 @@ async function sendMessage() {
   renderAttachments();
   conversationHistory.push({ role: 'user', content: text, attachments: userAttachments });
   appendMessage('user', text, null, null, null, userAttachments);
+  updateTokenBar();
   await streamFromHistory();
 }
 
@@ -2816,6 +2932,7 @@ function recycleMessage(btn) {
   conversationHistory = conversationHistory.slice(0, promptIdx + 1);
   renderAllMessages();
   saveCurrentChat();
+  updateTokenBar();
   // resend the prompt — the user message is already the history tail, just stream
   if (isStreaming) return;
   streamFromHistory();
@@ -2839,6 +2956,7 @@ function deleteMessage(btn) {
       if (!isNaN(h) && h >= idx) el.remove();
     });
   }
+  updateTokenBar();
   saveCurrentChat();
 }
 
@@ -3055,6 +3173,7 @@ async function streamResponse() {
         lastAi.stats = { tokens: exactTokens, timeMs: totalMs, tps: genMs > 0 ? (exactTokens / (genMs / 1000)) : 0, truncated: finishReason === 'length' || undefined, model: currentModel };
       }
     }
+    updateTokenBar();
   } catch (e) {
     if (msgStatsTimer) { clearInterval(msgStatsTimer); msgStatsTimer = null; }
     if (e.name === 'AbortError') {
@@ -3217,11 +3336,11 @@ function escapeAndFormat(text) {
   // Post-process code blocks: add copy / try-it / download to the pre blocks
   // that marked emitted, preserving the html-preview integration.
   return hl.replace(/<pre><code class="language-(html|htm|svelte|jsx|tsx|css)">([\s\S]*?)<\/code><\/pre>/g, (match, lang, code) => {
-    return `<pre data-ishtml="1"><code class="lang-${lang}">${code.trim()}</code><div class="pre-btns"><button class="copy-btn" onclick="copyCode(this)">Copy</button><button class="try-btn" onclick="tryHtml(this)">Try it</button><button class="dl-btn" onclick="downloadHtml(this)" title="Download HTML">${STAT_ICON_DOWNLOAD}</button></div><div class="pre-btns-bottom"><button class="try-btn" onclick="tryHtml(this)">Try it</button><button class="dl-btn" onclick="downloadHtml(this)" title="Download HTML">${STAT_ICON_DOWNLOAD}</button></div></pre>`;
+    return `<pre data-ishtml="1"><code class="lang-${lang}">${code.trim()}</code><div class="pre-btns"><button class="copy-btn" onclick="copyCode(this)">Copy</button><button class="try-btn" onclick="tryHtml(this)">Try it</button><button class="dl-btn" onclick="downloadHtml(this)" title="Download HTML">${STAT_ICON_DOWNLOAD}</button><button class="toggle-btn" onclick="toggleCode(this)" title="Minimize code">&minus;</button></div><div class="pre-btns-bottom"><button class="try-btn" onclick="tryHtml(this)">Try it</button><button class="dl-btn" onclick="downloadHtml(this)" title="Download HTML">${STAT_ICON_DOWNLOAD}</button><button class="toggle-btn" onclick="toggleCode(this)" title="Minimize code">&minus;</button></div></pre>`;
   }).replace(/<pre><code class="language-([\w+-]+)">([\s\S]*?)<\/code><\/pre>/g, (match, lang, code) => {
-    return `<pre><code class="lang-${lang}">${code.trim()}</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>`;
+    return `<pre><code class="lang-${lang}">${code.trim()}</code><button class="copy-btn" onclick="copyCode(this)">Copy</button><button class="toggle-btn" onclick="toggleCode(this)" title="Minimize code">&minus;</button></pre>`;
   }).replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, (match, code) => {
-    return `<pre><code class="lang-text">${code.trim()}</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>`;
+    return `<pre><code class="lang-text">${code.trim()}</code><button class="copy-btn" onclick="copyCode(this)">Copy</button><button class="toggle-btn" onclick="toggleCode(this)" title="Minimize code">&minus;</button></pre>`;
   });
 }
 
@@ -3247,6 +3366,16 @@ function sanitizeModelHtml(html) {
   } catch (e) {
     return html;
   }
+}
+
+// Minimize/expand a code snippet: collapses the <code> to a slim bar, keeps
+// the toolbars. Icon flips − (expanded, click to minimize) / + (collapsed,
+// click to expand). State is DOM-only (fresh render always starts expanded).
+function toggleCode(btn) {
+  const pre = btn.closest('pre');
+  const collapsed = pre.classList.toggle('collapsed');
+  btn.textContent = collapsed ? '+' : '\u2212';
+  btn.title = collapsed ? 'Expand code' : 'Minimize code';
 }
 
 function copyCode(btn) {
@@ -3354,7 +3483,7 @@ document.addEventListener('click', (e) => {
   if (sb.classList.contains('open') && !sb.contains(e.target) && !e.target.classList.contains('sidebar-toggle')) sb.classList.remove('open');
 });
 document.getElementById('settingsModal').addEventListener('click', (e) => { if (e.target === document.getElementById('settingsModal')) closeSettings(); });
-updateSysPromptBar();
+updateSysPromptBar(); updateTokenBar();
 </script>
 </body>
 </html>
