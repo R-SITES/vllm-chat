@@ -217,12 +217,21 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--dim);text-align:center}
 .empty-state .icon{font-size:48px;margin-bottom:12px;opacity:.5}
 .empty-state p{font-size:14px}
-.history-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:6px;cursor:pointer;transition:background .15s;min-width:0}
+.history-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:6px;cursor:pointer;transition:background .15s;min-width:0;position:relative}
+.history-item.pinned{background:rgba(88,166,255,.06)}
 .history-item:hover{background:var(--bg3)}
 .history-item .title{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px;flex:1;min-width:0}
+.history-item .title .pin-ic{vertical-align:-1px;margin-right:4px;color:var(--accent)}
 .history-item .date{font-size:11px;color:var(--dim)}
-.history-item .del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
-.history-item .del:hover{color:var(--red);background:rgba(248,81,73,.1)}
+.history-item .hi-actions{position:relative;flex-shrink:0;margin-left:6px}
+.history-item .menu-btn{background:none;border:none;color:var(--dim);cursor:pointer;padding:4px 3px;border-radius:6px;display:flex;align-items:center;opacity:.65;transition:all .12s}
+.history-item .menu-btn:hover{opacity:1;color:var(--text);background:rgba(255,255,255,.07)}
+.chat-menu{position:absolute;right:0;top:calc(100% + 6px);min-width:172px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.55);padding:4px;display:none;z-index:30}
+.chat-menu.open{display:block}
+.chat-menu-item{display:flex;align-items:center;gap:9px;width:100%;background:none;border:none;color:var(--text);font-size:12.5px;font-family:var(--font);padding:7px 10px;border-radius:7px;cursor:pointer;text-align:left;transition:background .12s,color .12s}
+.chat-menu-item svg{flex-shrink:0}
+.chat-menu-item:hover{background:rgba(88,166,255,.13);color:var(--accent)}
+.chat-menu-item.danger:hover{background:rgba(248,81,73,.13);color:var(--red)}
 .sidebar-toggle{background:var(--bg3)!important;border:1px solid var(--border)!important;color:var(--dim)!important;padding:5px 10px!important;cursor:pointer}
 .sidebar{position:fixed;top:0;left:0;bottom:0;width:280px;background:var(--bg);border-right:1px solid var(--border);z-index:999;transform:translateX(-100%);transition:transform .2s;display:flex;flex-direction:column}
 .sidebar.open{transform:translateX(0)}
@@ -248,7 +257,7 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
     <button class="new-chat-btn" onclick="newChat();toggleSidebar();" title="Start a new chat">＋ New Chat</button>
   </div>
   <div class="sidebar-body" id="chatHistory"></div>
-  <div class="sidebar-footer">vLLM Chat v1.4.0</div>
+  <div class="sidebar-footer">vLLM Chat v1.5.0</div>
 </div>
 
 <div class="header">
@@ -2662,10 +2671,23 @@ function loadHistory() {
     container.innerHTML = '<p style="padding:16px;color:var(--dim);font-size:13px;text-align:center">No conversations yet</p>';
     return;
   }
-  container.innerHTML = chats.map(c => `
-    <div class="history-item" onclick="loadConversation('${c.id}');toggleSidebar();">
-      <div><div class="title">${escHtml(threadTitle(c.title))}</div><div class="date">${formatDate(c.created)}</div></div>
-      <button class="del" onclick="event.stopPropagation();deleteChat('${c.id}');" title="Delete">×</button>
+  // pinned chats float to the top as favorites; order within each group is the
+  // existing recency order (newest first)
+  const sorted = [...chats.filter(c => c.pinned), ...chats.filter(c => !c.pinned)];
+  container.innerHTML = sorted.map(c => `
+    <div class="history-item${c.pinned ? ' pinned' : ''}" onclick="loadConversation('${c.id}');toggleSidebar();">
+      <div style="flex:1;min-width:0">
+        <div class="title">${c.pinned ? '<span class="pin-ic">' + ICON_PIN + '</span>' : ''}${escHtml(threadTitle(c.title))}</div>
+        <div class="date">${formatDate(c.created)}</div>
+      </div>
+      <div class="hi-actions">
+        <button class="menu-btn" onclick="event.stopPropagation();toggleChatMenu('${c.id}');" title="Chat options">${ICON_MORE}</button>
+        <div class="chat-menu" id="chatMenu_${c.id}">
+          <button class="chat-menu-item" onclick="event.stopPropagation();togglePin('${c.id}');">${c.pinned ? ICON_UNPIN : ICON_PIN}<span>${c.pinned ? 'Unpin' : 'Pin'}</span></button>
+          <button class="chat-menu-item" onclick="event.stopPropagation();exportThread('${c.id}');">${ICON_DL}<span>Export chat</span></button>
+          <button class="chat-menu-item danger" onclick="event.stopPropagation();deleteChat('${c.id}');">${ICON_TRASH}<span>Delete</span></button>
+        </div>
+      </div>
     </div>`).join('');
 }
 function formatDate(ts) {
@@ -2737,6 +2759,49 @@ function deleteChat(chatId) {
   if (currentChatId === chatId) newChat();
   loadHistory();
 }
+
+// ── Thread menu (pin / export / delete) ──
+const ICON_MORE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
+const ICON_PIN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/></svg>';
+const ICON_UNPIN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/><line x1="2" y1="2" x2="22" y2="22"/></svg>';
+const ICON_DL = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+const ICON_TRASH = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+
+function toggleChatMenu(chatId) {
+  const menu = document.getElementById('chatMenu_' + chatId);
+  if (!menu) return;
+  const wasOpen = menu.classList.contains('open');
+  closeChatMenus();
+  if (!wasOpen) menu.classList.add('open');
+}
+function closeChatMenus() {
+  document.querySelectorAll('.chat-menu.open').forEach(m => m.classList.remove('open'));
+}
+function togglePin(chatId) {
+  const chats = JSON.parse(localStorage.getItem('chat_history') || '[]');
+  const chat = chats.find(c => c.id === chatId);
+  if (!chat) return;
+  chat.pinned = !chat.pinned;
+  localStorage.setItem('chat_history', JSON.stringify(chats));
+  showToast(chat.pinned ? 'Chat pinned — moved to top' : 'Chat unpinned');
+  loadHistory();
+}
+function exportThread(chatId) {
+  const chats = JSON.parse(localStorage.getItem('chat_history') || '[]');
+  const chat = chats.find(c => c.id === chatId);
+  if (!chat || !(chat.messages || []).length) return showToast('No messages');
+  const text = (chat.messages || []).map(m => `${m.role.toUpperCase()}: ${m.content || ''}`).join('\n\n');
+  const base = (threadTitle(chat.title) || 'chat').replace(/[^a-z0-9 _-]+/gi, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'chat';
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = base + '.txt'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('Chat exported');
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.chat-menu, .menu-btn')) closeChatMenus();
+});
 
 // ---- API ----
 function loadModels() {
