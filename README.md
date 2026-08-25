@@ -17,6 +17,7 @@ A llama.cpp-style chat window for [vLLM](https://github.com/vllm-project/vllm)'s
 - **Token context bar** — Big AGI-style segmented bar at the input's bottom edge (history / current message / max response, red on overflow); hover pops the exact context breakdown: model max tokens, this message, history, max response
 - **History** — sidebar with localStorage persistence, thread titles, per-thread model badges
 - **Thread menu** — ⋯ menu on every conversation: pin (favorites float to the top with a pin glyph), export the thread as a .txt, or delete
+- **Edit messages** — ✎ on user messages: edit an old prompt and re-send; if a response existed, the old answer is kept and a ‹ n/N › pill flips between versions (llama.cpp/Qwen style, persists across reloads)
 
 ## Run
 

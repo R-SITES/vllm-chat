@@ -104,6 +104,9 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .bubble pre.collapsed .pre-btns-bottom{display:none}
 .msg-main{display:flex;flex-direction:column;align-items:flex-start;max-width:90%;min-width:0}
 .msg.user .msg-main{align-items:flex-end}
+/* editing a message: stretch the editor to the full chat column width */
+.msg.editing .msg-main{flex:1;width:100%;max-width:100%}
+.msg.editing .bubble{width:100%;max-width:100%}
 .msg.user .msg-main .bubble{max-width:100%}
 .msg.assistant .msg-main .bubble{max-width:100%}
 .msg-stats{display:flex;align-items:center;gap:12px;margin-top:4px;padding:0 4px;font-size:11px;color:var(--dim);flex-wrap:wrap;user-select:none}
@@ -118,6 +121,18 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .msg-stats .msg-act{background:none;border:none;color:var(--dim);cursor:pointer;padding:3px 5px;border-radius:4px;opacity:.6;display:inline-flex;align-items:center;transition:all .15s}
 .msg-stats .msg-act:hover{opacity:1;color:var(--text);background:var(--bg3)}
 .msg-stats .msg-act.del:hover{color:var(--red);background:rgba(248,81,73,.12)}
+/* ── Message edit + branch versions (llama.cpp/Qwen port) ── */
+.branch-bar{display:inline-flex;align-items:center;gap:5px;margin-bottom:8px;padding:2px 12px;background:rgba(88,166,255,.10);border:1px solid rgba(88,166,255,.30);border-radius:999px;font-size:11px;font-family:var(--mono);color:var(--accent);cursor:pointer;user-select:none;transition:background .12s}
+.branch-bar:hover{background:rgba(88,166,255,.22)}
+.branch-bar.past{background:rgba(210,153,34,.10);border-color:rgba(210,153,34,.32);color:#d29922}
+.branch-bar.past:hover{background:rgba(210,153,34,.2)}
+.edit-ta{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;font-family:var(--font);resize:vertical;min-height:90px;outline:none;line-height:1.5}
+.edit-ta:focus{border-color:var(--accent)}
+.edit-actions{display:flex;gap:8px;margin-top:8px}
+.edit-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;font-size:12px;font-family:var(--font);transition:all .15s}
+.edit-btn:hover{border-color:var(--accent);color:var(--accent)}
+.edit-btn.save{background:var(--accent);border-color:var(--accent);color:#fff}
+.edit-btn.save:hover{opacity:.85}
 .trunc-note{margin-top:6px;padding:6px 10px;font-size:11px;color:#e3b341;background:rgba(227,179,65,.1);border:1px solid rgba(227,179,65,.25);border-radius:6px;line-height:1.4}
 .preview-overlay{display:none;position:fixed;inset:0;background-color:transparent;z-index:100000}
 .preview-overlay.show{display:block}
@@ -257,7 +272,7 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
     <button class="new-chat-btn" onclick="newChat();toggleSidebar();" title="Start a new chat">＋ New Chat</button>
   </div>
   <div class="sidebar-body" id="chatHistory"></div>
-  <div class="sidebar-footer">vLLM Chat v1.5.0</div>
+  <div class="sidebar-footer">vLLM Chat v1.5.1</div>
 </div>
 
 <div class="header">
@@ -2380,6 +2395,7 @@ const STAT_ICON_DOWNLOAD = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
 const STAT_ICON_TRASH = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
 const STAT_ICON_COPY = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 const STAT_ICON_RECYCLE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>';
+const STAT_ICON_EDIT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>';
 
 // llama.cpp formatPerformanceTime port
 function formatPerfTime(ms) {
@@ -2397,15 +2413,24 @@ function formatPerfTime(ms) {
   return parts.join(' ');
 }
 
-function msgActionsHTML() {
+function msgActionsHTML(isUser, minimal) {
+  // minimal = viewing an older branch version: copy only (recycle/delete would
+  // act on the live path, edit is disabled on non-current views)
+  if (minimal) {
+    return `<span class="msg-actions">
+      <button class="msg-act" onclick="copyMessage(this)" title="Copy">${STAT_ICON_COPY}</button>
+    </span>`;
+  }
+  const edit = isUser ? `<button class="msg-act" onclick="editMessage(this)" title="Edit message">${STAT_ICON_EDIT}</button>` : '';
   return `<span class="msg-actions">
+    ${edit}
     <button class="msg-act" onclick="copyMessage(this)" title="Copy">${STAT_ICON_COPY}</button>
     <button class="msg-act" onclick="recycleMessage(this)" title="Recycle: resend this prompt, delete responses below">${STAT_ICON_RECYCLE}</button>
     <button class="msg-act del" onclick="deleteMessage(this)" title="Delete this message and all below">${STAT_ICON_TRASH}</button>
   </span>`;
 }
 
-function statsBarHTML(tokens, timeMs, tokSec, live, model) {
+function statsBarHTML(tokens, timeMs, tokSec, live, model, minimalActions = false) {
   const tps = tokSec !== null && tokSec !== undefined ? (live ? tokSec.toFixed(2) : tokSec.toFixed(2)) + ' t/s' : (live ? '— t/s' : '');
   const modelBadge = model ? `<span class="stat-badge" title="Model: ${escAttr(model)}"><span class="ic">◆</span><span class="val model-val">${escHtml(shortModel(model))}</span></span>` : '';
   return `<div class="msg-stats">
@@ -2413,7 +2438,7 @@ function statsBarHTML(tokens, timeMs, tokSec, live, model) {
     <span class="stat-badge ${live ? 'live' : ''}" title="Generated tokens"><span class="ic">${STAT_ICON_TOKENS}</span><span class="val">${tokens.toLocaleString()} tokens</span></span>
     <span class="stat-badge ${live ? 'live' : ''}" title="Generation time"><span class="ic">${STAT_ICON_CLOCK}</span><span class="val">${formatPerfTime(timeMs)}</span></span>
     <span class="stat-badge ${live ? 'live' : ''}" title="Generation speed"><span class="ic">${STAT_ICON_GAUGE}</span><span class="val">${tps}</span></span>
-    ${msgActionsHTML()}
+    ${msgActionsHTML(false, minimalActions)}
   </div>`;
 }
 
@@ -2961,6 +2986,7 @@ async function streamFromHistory() {
   catch (e) {
     if (e.name !== 'AbortError') appendMessage('system', 'Error: ' + e.message);
   }
+  ensureBranchBar();
   saveCurrentChat();
   isStreaming = false;
   abortController = null;
@@ -2975,7 +3001,7 @@ function copyMessage(btn) {
   if (!msgEl) return;
   const idx = parseInt(msgEl.dataset.hidx, 10);
   if (isNaN(idx) || idx < 0 || idx >= conversationHistory.length) return;
-  const text = conversationHistory[idx].content || '';
+  const text = branchDisplay(idx).content || '';
   if (!text) return;
   navigator.clipboard.writeText(text).then(() => showToast('Copied')).catch(() => {});
 }
@@ -3027,6 +3053,118 @@ function deleteMessage(btn) {
 
 function stopGeneration() { if (abortController) abortController.abort(); }
 
+// ── Edit user message + branch versions (llama.cpp/Qwen port) ──
+// Model: editing a user message that already has a response saves the old
+// (user+assistant) pair into msg.branches[] (oldest first) and regenerates a
+// fresh response; a ‹ n/N › pill on the response flips between versions.
+function branchContext(idx) {
+  const m = conversationHistory[idx];
+  if (!m) return null;
+  let owner = null, userIdx = -1;
+  if (m.role === 'user') { owner = m; userIdx = idx; }
+  else if (m.role === 'assistant') {
+    const p = conversationHistory[idx - 1];
+    if (p && p.role === 'user' && p.branches && p.branches.length) { owner = p; userIdx = idx - 1; }
+  }
+  if (!owner || !owner.branches || !owner.branches.length) return null;
+  const total = owner.branches.length + 1;
+  const view = (owner.viewBranch !== undefined) ? owner.viewBranch : owner.branches.length;
+  return { userIdx, owner, viewIdx: view, total, isPast: view < owner.branches.length };
+}
+function branchDisplay(idx) {
+  const m = conversationHistory[idx];
+  if (!m) return { content: '', thinking: null, stats: null, attachments: null, ctx: null };
+  let content = m.content || '', thinking = m.thinking || null, stats = m.stats || null, att = m.attachments || null;
+  const ctx = branchContext(idx);
+  if (ctx && ctx.isPast) {
+    const v = ctx.owner.branches[ctx.viewIdx];
+    if (m.role === 'user') {
+      content = (v.u && v.u.content) || '';
+      att = (v.u && v.u.attachments) || null;
+    } else {
+      content = (v.a && v.a.content) || '';
+      thinking = (v.a && v.a.thinking) || null;
+      stats = (v.a && v.a.stats) || null;
+    }
+  }
+  return { content, thinking, stats, attachments: att, ctx };
+}
+function cycleBranch(userIdx) {
+  const m = conversationHistory[userIdx];
+  if (!m || !m.branches || !m.branches.length) return;
+  const total = m.branches.length + 1;
+  const cur = (m.viewBranch !== undefined) ? m.viewBranch : m.branches.length;
+  m.viewBranch = (cur + 1) % total;
+  saveCurrentChat();   // persist the active version view (llama.cpp keeps currentNode)
+  renderAllMessages();
+}
+function editMessage(btn) {
+  const msgEl = btn.closest('.msg');
+  if (!msgEl) return;
+  const idx = parseInt(msgEl.dataset.hidx, 10);
+  if (isNaN(idx) || idx < 0 || idx >= conversationHistory.length) return;
+  const msg = conversationHistory[idx];
+  if (!msg || msg.role !== 'user') return;
+  if (isStreaming) stopGeneration();
+  msgEl.classList.add('editing');
+  const bubble = msgEl.querySelector('.bubble');
+  if (!bubble) return;
+  const attNote = (msg.attachments && msg.attachments.length)
+    ? `\n\n[attachments stay attached: ${msg.attachments.map(a => a.name).join(', ')}]` : '';
+  bubble.innerHTML = `<textarea class="edit-ta" id="editTa">${escHtml(msg.content)}</textarea>${attNote ? `<div style="font-size:11px;color:var(--dim);margin-top:6px">${attNote}</div>` : ''}
+    <div class="edit-actions">
+      <button class="edit-btn save" onclick="saveMessageEdit(${idx})">Save &amp; send</button>
+      <button class="edit-btn" onclick="cancelMessageEdit(${idx})">Cancel</button>
+    </div>`;
+  const ta = bubble.querySelector('.edit-ta');
+  if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+}
+function cancelMessageEdit(idx) {
+  renderAllMessages();
+}
+function saveMessageEdit(idx) {
+  const msg = conversationHistory[idx];
+  if (!msg || msg.role !== 'user') return;
+  const ta = document.getElementById('editTa');
+  const text = ta ? ta.value.trim() : '';
+  if (!text) { showToast('Message cannot be empty'); return; }
+  if (isStreaming) stopGeneration();
+  const next = conversationHistory[idx + 1];
+  const hadResponse = !!(next && next.role === 'assistant');
+  if (hadResponse) {
+    // save the current (old) user+assistant pair as a past branch, then truncate
+    msg.branches = msg.branches || [];
+    msg.branches.push({
+      u: { content: msg.content || '', attachments: msg.attachments || null },
+      a: next ? { content: next.content || '', thinking: next.thinking || null, stats: next.stats || null } : null
+    });
+    msg.viewBranch = msg.branches.length;   // current = newest version
+    conversationHistory = conversationHistory.slice(0, idx + 1);
+  }
+  msg.content = text;
+  saveCurrentChat();
+  renderAllMessages();
+  updateTokenBar();
+  if (hadResponse && !isStreaming) streamFromHistory();
+}
+function ensureBranchBar() {
+  // after a stream finalizes, stamp the ‹ n/N › pill onto the live response
+  const msgs = document.querySelectorAll('.msg.assistant');
+  const el = msgs[msgs.length - 1];
+  if (!el || el.querySelector('.branch-bar')) return;
+  const idx = parseInt(el.dataset.hidx, 10);
+  if (isNaN(idx)) return;
+  const ctx = branchContext(idx);
+  if (!ctx || ctx.total < 2) return;
+  const bar = document.createElement('div');
+  bar.className = 'branch-bar' + (ctx.isPast ? ' past' : '');
+  bar.title = 'Switch between versions of this response';
+  bar.onclick = () => cycleBranch(ctx.userIdx);
+  bar.innerHTML = `‹ <b>${ctx.viewIdx + 1}</b>/${ctx.total} ›`;
+  const main = el.querySelector('.msg-main');
+  if (main) main.insertBefore(bar, main.firstChild);
+}
+
 // User avatar = white person SVG on the blue circle (2026-08-22); the 👤 emoji
 // is a color glyph and can't be recolored, so user messages use this lucide
 // "user" icon stroked with currentColor (#fff on the blue circle).
@@ -3036,7 +3174,7 @@ function avatarIconHTML(role) {
   }
   return role === 'assistant' ? '🤖' : '⚡';
 }
-function appendMessage(role, content, thinking = null, stats = null, hidx = null, attachments = null) {
+function appendMessage(role, content, thinking = null, stats = null, hidx = null, attachments = null, branchCtx = null) {
   resetJumpIndex();   // new content → walk restarts from the newest message
   const container = document.getElementById('messages');
   const div = document.createElement('div');
@@ -3052,19 +3190,24 @@ function appendMessage(role, content, thinking = null, stats = null, hidx = null
     if (attachments && attachments.length) bubbleHtml += attachmentChipsHTML(attachments);
   }
   let statsHtml = '';
+  const isPast = !!(branchCtx && branchCtx.isPast);
   if (role === 'assistant' && stats && (stats.tokens > 0 || stats.timeMs > 0)) {
-    statsHtml = statsBarHTML(stats.tokens || 0, stats.timeMs || 0, stats.tps ?? null, false, stats.model || currentModel);
+    statsHtml = statsBarHTML(stats.tokens || 0, stats.timeMs || 0, stats.tps ?? null, false, stats.model || currentModel, isPast);
   } else if (role === 'assistant') {
     // assistant without stored stats: actions only
-    statsHtml = `<div class="msg-stats">${msgActionsHTML()}</div>`;
+    statsHtml = `<div class="msg-stats">${msgActionsHTML(false, isPast)}</div>`;
   } else if (role === 'user') {
-    // user bubbles get the same actions row (copy / recycle / delete)
-    statsHtml = `<div class="msg-stats">${msgActionsHTML()}</div>`;
+    // user bubbles get the same actions row (edit / copy / recycle / delete)
+    statsHtml = `<div class="msg-stats">${msgActionsHTML(true, isPast)}</div>`;
   }
   if (role === 'assistant' && stats && stats.truncated) {
     statsHtml += '<div class="trunc-note">⚠ Response was truncated at the token limit when generated.</div>';
   }
-  div.innerHTML = `<div class="avatar">${avatarIconHTML(role)}</div><div class="msg-main"><div class="bubble">${bubbleHtml}</div>${statsHtml}</div>`;
+  let barHtml = '';
+  if (role === 'assistant' && branchCtx && branchCtx.total >= 2) {
+    barHtml = `<div class="branch-bar${isPast ? ' past' : ''}" onclick="cycleBranch(${branchCtx.userIdx})" title="Switch between versions of this response">‹ <b>${branchCtx.viewIdx + 1}</b>/${branchCtx.total} ›</div>`;
+  }
+  div.innerHTML = `<div class="avatar">${avatarIconHTML(role)}</div><div class="msg-main">${barHtml}<div class="bubble">${bubbleHtml}</div>${statsHtml}</div>`;
   // stamp the matching conversationHistory index (system msgs aren't in history — use -1)
   const hidxVal = (hidx !== null && hidx !== undefined) ? hidx : ((role === 'system') ? -1 : (conversationHistory.length - 1));
   div.dataset.hidx = hidxVal;
@@ -3321,8 +3464,9 @@ function renderAllMessages() {
   const container = document.getElementById('messages');
   container.innerHTML = '';
   conversationHistory.forEach((msg, i) => {
-    if (msg.role === 'user') appendMessage('user', msg.content, null, null, i, msg.attachments || null);
-    else if (msg.role === 'assistant') appendMessage('assistant', msg.content || '', msg.thinking, msg.stats || null, i);
+    const d = branchDisplay(i);
+    if (msg.role === 'user') appendMessage('user', d.content, null, null, i, d.attachments, d.ctx);
+    else if (msg.role === 'assistant') appendMessage('assistant', d.content, d.thinking, d.stats, i, null, d.ctx);
   });
 }
 
