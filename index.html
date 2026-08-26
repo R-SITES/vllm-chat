@@ -8,7 +8,7 @@
 <link rel="icon" href="favicon-16.png" sizes="16x16" type="image/png">
 <link rel="icon" href="favicon-48.png" sizes="48x48" type="image/png">
 <style>
-:root{--bg:#0d1117;--bg2:#161b22;--bg3:#1c2333;--border:#30363d;--text:#e6edf3;--dim:#8b949e;--accent:#58a6ff;--accentBg:rgba(88,166,255,.15);--userBg:#1f6feb;--asstBg:#161b22;--sysBg:#2d1b2e;--r:8px;--font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;--mono:'JetBrains Mono','Fira Code','Cascadia Code',monospace;--green:#3fb950;--red:#f85149}
+:root{--bg:#0d1117;--bg2:#161b22;--bg3:#1c2333;--border:#30363d;--text:#e6edf3;--dim:#8b949e;--accent:#58a6ff;--accentBg:rgba(88,166,255,.15);--accentSoft:rgba(88,166,255,.08);--accentLine:rgba(88,166,255,.30);--accentStrong:rgba(88,166,255,.45);--userBg:#1f6feb;--asstBg:#161b22;--sysBg:#2d1b2e;--sysText:#d2a8ff;--sysLine:rgba(210,168,255,.22);--sysBgSoft:rgba(210,168,255,.10);--sysGlow:rgba(210,168,255,.30);--purple:#b388ff;--quoteBg:rgba(188,140,255,.06);--r:8px;--font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;--mono:'JetBrains Mono','Fira Code','Cascadia Code',monospace;--green:#3fb950;--red:#f85149}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
 .header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
@@ -41,7 +41,7 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .stat-item{display:flex;align-items:center;gap:4px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;font-size:10px;letter-spacing:0.3px;white-space:nowrap}
 .stat-item .label{color:var(--dim);opacity:.7}
 .stat-item .val{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
-.stat-item.live{border-color:rgba(88,166,255,.3);background:rgba(88,166,255,.08)}
+.stat-item.live{border-color:var(--accentLine);background:var(--accentSoft)}
 .stat-item.live .val{color:var(--green)}
 .chat-area{flex:1;overflow-y:auto;padding:20px 0}
 .messages{max-width:880px;width:100%;margin:0 auto;padding:0 24px}
@@ -51,11 +51,11 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px}
 .msg.user .avatar{background:var(--userBg);color:#fff}
 .msg.assistant .avatar{background:var(--accentBg);color:var(--accent)}
-.msg.system .avatar{background:var(--sysBg);color:#d2a8ff}
+.msg.system .avatar{background:var(--sysBg);color:var(--sysText)}
 .bubble{max-width:85%;padding:12px 16px;border-radius:16px;line-height:1.75;font-size:14px;word-wrap:break-word;position:relative}
 .msg.user .bubble{background:var(--userBg);border-radius:16px 4px 16px 16px;color:#fff}
 .msg.assistant .bubble{background:var(--asstBg);border:1px solid var(--border);border-radius:4px 16px 16px 16px}
-.msg.system .bubble{background:var(--sysBg);border:1px solid rgba(210,168,255,.2);border-radius:var(--r);color:#d2a8ff;font-size:12px}
+.msg.system .bubble{background:var(--sysBg);border:1px solid var(--sysLine);border-radius:var(--r);color:var(--sysText);font-size:12px}
 .bubble p{margin:1rem 0}
 .bubble p:first-child{margin-top:0}
 .bubble h1,.bubble h2,.bubble h3,.bubble h4{margin:1.5rem 0 0.75rem;font-weight:600;line-height:1.3;color:var(--text)}
@@ -67,7 +67,7 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .bubble table{border-collapse:collapse;margin:1.5rem 0;font-size:13px;width:100%}
 .bubble th,.bubble td{border:1px solid var(--border);padding:8px 12px;text-align:left}
 .bubble th{background:var(--bg3);font-weight:600}
-.bubble blockquote{border-left:3px solid var(--purple);margin:1.5rem 0;padding:8px 16px;color:var(--dim);background:rgba(188,140,255,.06);border-radius:0 8px 8px 0}
+.bubble blockquote{border-left:3px solid var(--purple);margin:1.5rem 0;padding:8px 16px;color:var(--dim);background:var(--quoteBg);border-radius:0 8px 8px 0}
 .bubble blockquote p{margin:4px 0}
 .bubble hr{border:none;border-top:1px solid var(--border);margin:1.5rem 0}
 .bubble a{color:var(--accent);text-decoration:none}
@@ -122,8 +122,8 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .msg-stats .msg-act:hover{opacity:1;color:var(--text);background:var(--bg3)}
 .msg-stats .msg-act.del:hover{color:var(--red);background:rgba(248,81,73,.12)}
 /* ── Message edit + branch versions (llama.cpp/Qwen port) ── */
-.branch-bar{display:inline-flex;align-items:center;gap:5px;margin-bottom:8px;padding:2px 12px;background:rgba(88,166,255,.10);border:1px solid rgba(88,166,255,.30);border-radius:999px;font-size:11px;font-family:var(--mono);color:var(--accent);cursor:pointer;user-select:none;transition:background .12s}
-.branch-bar:hover{background:rgba(88,166,255,.22)}
+.branch-bar{display:inline-flex;align-items:center;gap:5px;margin-bottom:8px;padding:2px 12px;background:var(--accentSoft);border:1px solid var(--accentLine);border-radius:999px;font-size:11px;font-family:var(--mono);color:var(--accent);cursor:pointer;user-select:none;transition:background .12s}
+.branch-bar:hover{background:var(--accentLine)}
 .branch-bar.past{background:rgba(210,153,34,.10);border-color:rgba(210,153,34,.32);color:#d29922}
 .branch-bar.past:hover{background:rgba(210,153,34,.2)}
 .edit-ta{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;font-family:var(--font);resize:vertical;min-height:90px;outline:none;line-height:1.5}
@@ -141,9 +141,9 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .preview-overlay .preview-close{position:absolute;top:16px;right:16px;z-index:100002;border:none;background:transparent;color:#fff;opacity:.7;mix-blend-difference;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;transition:opacity .15s}
 .preview-overlay .preview-close:hover{opacity:1}
 .thinking-block{margin-bottom:10px}
-.thinking-pill{display:inline-flex;align-items:center;gap:8px;background:rgba(210,168,255,.10);border:1px solid rgba(210,168,255,.22);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:600;color:#d2a8ff;cursor:pointer;user-select:none;transition:all .15s}
-.thinking-pill:hover{background:rgba(210,168,255,.18)}
-.tp-spinner{width:12px;height:12px;border:2px solid rgba(210,168,255,.3);border-top-color:#d2a8ff;border-radius:50%;animation:tp-spin .8s linear infinite;flex-shrink:0}
+.thinking-pill{display:inline-flex;align-items:center;gap:8px;background:var(--sysBgSoft);border:1px solid var(--sysLine);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--sysText);cursor:pointer;user-select:none;transition:all .15s}
+.thinking-pill:hover{background:var(--sysLine)}
+.tp-spinner{width:12px;height:12px;border:2px solid var(--sysGlow);border-top-color:var(--sysText);border-radius:50%;animation:tp-spin .8s linear infinite;flex-shrink:0}
 .thinking-block.done .tp-spinner{animation:none;border-color:#6d647d;border-top-color:#6d647d}
 .tp-chev{font-size:10px;color:var(--dim);transition:transform .15s}
 .thinking-block.open .tp-chev{transform:rotate(180deg)}
@@ -162,7 +162,7 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .sys-prompt-area{max-width:820px;width:100%;margin:0 auto;padding:10px 16px 0;flex-shrink:0}
 .sys-prompt-bar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;cursor:pointer;user-select:none;font-size:12px;color:var(--dim);transition:border-color .15s,color .15s}
 .sys-prompt-bar:hover{border-color:var(--accent);color:var(--text)}
-.sys-prompt-bar.has-prompt{border-color:rgba(88,166,255,.45);color:var(--accent)}
+.sys-prompt-bar.has-prompt{border-color:var(--accentStrong);color:var(--accent)}
 .sys-prompt-bar .sp-label{font-weight:600}
 .sys-prompt-bar .sp-status{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;opacity:.85}
 .sys-prompt-bar .sp-chevron{transition:transform .2s}
@@ -183,7 +183,7 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .token-progress{position:absolute;left:1px;right:1px;bottom:1px;height:8px;overflow:hidden;border-radius:0 0 19px 19px;cursor:help;z-index:5}
 .token-progress .tp-seg{position:absolute;bottom:0;height:4px}
 .token-progress.overflow .tp-seg{height:8px}
-.tp-history{background:rgba(88,166,255,.35)}
+.tp-history{background:var(--accentLine)}
 .tp-direct{background:var(--accent)}
 .tp-response{background:rgba(139,148,158,.5)}
 .tp-overflow{background:var(--red)}
@@ -229,11 +229,18 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .modal .btn{padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;font-size:13px;font-family:var(--font);transition:all .15s}
 .modal .btn:hover{border-color:var(--accent);color:var(--accent)}
 .modal .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+/* ── Theme picker (settings modal) — front circle = accent (3px white ring), back circle = theme's base color, offset bottom-right ── */
+.theme-row{display:flex;gap:10px;margin-top:8px}
+.theme-swatch{position:relative;width:44px;height:44px;padding:0;border:none;background:none;cursor:pointer;flex-shrink:0;border-radius:50%;transition:transform .12s}
+.theme-swatch:hover{transform:scale(1.07)}
+.theme-swatch.active{outline:2px solid var(--accent);outline-offset:2px}
+.swatch-back{position:absolute;right:2px;bottom:2px;width:30px;height:30px;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.55)}
+.swatch-front{position:absolute;left:2px;top:2px;width:28px;height:28px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.55);box-sizing:border-box}
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--dim);text-align:center}
 .empty-state .icon{font-size:48px;margin-bottom:12px;opacity:.5}
 .empty-state p{font-size:14px}
 .history-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:6px;cursor:pointer;transition:background .15s;min-width:0;position:relative}
-.history-item.pinned{background:rgba(88,166,255,.06)}
+.history-item.pinned{background:var(--accentSoft)}
 .history-item:hover{background:var(--bg3)}
 .history-item .title{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px;flex:1;min-width:0}
 .history-item .title .pin-ic{vertical-align:-1px;margin-right:4px;color:var(--accent)}
@@ -245,7 +252,7 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .chat-menu.open{display:block}
 .chat-menu-item{display:flex;align-items:center;gap:9px;width:100%;background:none;border:none;color:var(--text);font-size:12.5px;font-family:var(--font);padding:7px 10px;border-radius:7px;cursor:pointer;text-align:left;transition:background .12s,color .12s}
 .chat-menu-item svg{flex-shrink:0}
-.chat-menu-item:hover{background:rgba(88,166,255,.13);color:var(--accent)}
+.chat-menu-item:hover{background:var(--accentBg);color:var(--accent)}
 .chat-menu-item.danger:hover{background:rgba(248,81,73,.13);color:var(--red)}
 .sidebar-toggle{background:var(--bg3)!important;border:1px solid var(--border)!important;color:var(--dim)!important;padding:5px 10px!important;cursor:pointer}
 .sidebar{position:fixed;top:0;left:0;bottom:0;width:280px;background:var(--bg);border-right:1px solid var(--border);z-index:999;transform:translateX(-100%);transition:transform .2s;display:flex;flex-direction:column}
@@ -260,6 +267,23 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .sidebar-footer{padding:8px 16px;border-top:1px solid var(--border);color:var(--dim);font-size:11px;text-align:center;flex-shrink:0}
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;z-index:2000;animation:fadeIn .2s}
 </style>
+<script>
+/* ── Theme engine — head: applies the stored theme BEFORE first paint (no flash). THEMES keys double as localStorage 'chat_theme' values; each key maps 1:1 to CSS custom props (minus 'name'). ── */
+const THEMES={
+blue:{name:'Blue / Dark Grey',bg:'#0d1117',bg2:'#161b22',bg3:'#1c2333',border:'#30363d',text:'#e6edf3',dim:'#8b949e',accent:'#58a6ff',accentBg:'rgba(88,166,255,.15)',accentSoft:'rgba(88,166,255,.08)',accentLine:'rgba(88,166,255,.30)',accentStrong:'rgba(88,166,255,.45)',userBg:'#1f6feb',asstBg:'#161b22',sysBg:'#2d1b2e',sysText:'#d2a8ff',sysLine:'rgba(210,168,255,.22)',sysBgSoft:'rgba(210,168,255,.10)',sysGlow:'rgba(210,168,255,.30)',purple:'#b388ff',quoteBg:'rgba(188,140,255,.06)'},
+green:{name:'Green / Charcoal',bg:'#0b1210',bg2:'#111a17',bg3:'#17241f',border:'#23362d',text:'#e2f0e8',dim:'#7f9c8d',accent:'#34d399',accentBg:'rgba(52,211,153,.15)',accentSoft:'rgba(52,211,153,.08)',accentLine:'rgba(52,211,153,.30)',accentStrong:'rgba(52,211,153,.45)',userBg:'#0f8a5f',asstBg:'#111a17',sysBg:'#0e2a20',sysText:'#8fe8bd',sysLine:'rgba(143,232,189,.22)',sysBgSoft:'rgba(143,232,189,.10)',sysGlow:'rgba(143,232,189,.30)',purple:'#2dd48f',quoteBg:'rgba(45,212,143,.08)'},
+purple:{name:'Purple / Black',bg:'#0a0a12',bg2:'#12121e',bg3:'#1a1a2c',border:'#2d2d47',text:'#eae6f5',dim:'#8f8ab0',accent:'#a78bfa',accentBg:'rgba(167,139,250,.15)',accentSoft:'rgba(167,139,250,.08)',accentLine:'rgba(167,139,250,.30)',accentStrong:'rgba(167,139,250,.45)',userBg:'#7c5cff',asstBg:'#12121e',sysBg:'#241a3d',sysText:'#cbb8ff',sysLine:'rgba(203,184,255,.22)',sysBgSoft:'rgba(203,184,255,.10)',sysGlow:'rgba(203,184,255,.30)',purple:'#b388ff',quoteBg:'rgba(179,136,255,.08)'},
+orange:{name:'Orange / Deep Navy',bg:'#0d1420',bg2:'#141c2b',bg3:'#1c2740',border:'#2c3b5c',text:'#eef2f8',dim:'#8ea3c0',accent:'#ff9f43',accentBg:'rgba(255,159,67,.15)',accentSoft:'rgba(255,159,67,.08)',accentLine:'rgba(255,159,67,.30)',accentStrong:'rgba(255,159,67,.45)',userBg:'#e07b1f',asstBg:'#141c2b',sysBg:'#33220f',sysText:'#ffc58a',sysLine:'rgba(255,197,138,.22)',sysBgSoft:'rgba(255,197,138,.10)',sysGlow:'rgba(255,197,138,.30)',purple:'#ffab5e',quoteBg:'rgba(255,159,67,.08)'},
+teal:{name:'Teal / Slate',bg:'#0b1316',bg2:'#121c20',bg3:'#18262c',border:'#26404a',text:'#e2f0f4',dim:'#7f9aa6',accent:'#2dd4bf',accentBg:'rgba(45,212,191,.15)',accentSoft:'rgba(45,212,191,.08)',accentLine:'rgba(45,212,191,.30)',accentStrong:'rgba(45,212,191,.45)',userBg:'#0e9e8f',asstBg:'#121c20',sysBg:'#0f2a2e',sysText:'#8fe6da',sysLine:'rgba(143,230,218,.22)',sysBgSoft:'rgba(143,230,218,.10)',sysGlow:'rgba(143,230,218,.30)',purple:'#2dd4a8',quoteBg:'rgba(45,212,168,.08)'}
+};
+function applyTheme(key,persist){
+  const t=THEMES[key]||THEMES.blue,s=document.documentElement.style;
+  for(const p in t){if(p==='name')continue;s.setProperty('--'+p,t[p]);}
+  if(persist!==false)localStorage.setItem('chat_theme',key);
+  document.querySelectorAll('#themeRow .theme-swatch').forEach(b=>b.classList.toggle('active',b.dataset.theme===key));
+}
+applyTheme(localStorage.getItem('chat_theme')||'blue',false);
+</script>
 </head>
 <body>
 
@@ -272,7 +296,7 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
     <button class="new-chat-btn" onclick="newChat();toggleSidebar();" title="Start a new chat">＋ New Chat</button>
   </div>
   <div class="sidebar-body" id="chatHistory"></div>
-  <div class="sidebar-footer">vLLM Chat v1.5.1</div>
+  <div class="sidebar-footer">vLLM Chat v1.6.0</div>
 </div>
 
 <div class="header">
@@ -372,6 +396,14 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 <div class="modal-overlay" id="settingsModal">
   <div class="modal">
     <h2>⚙ Settings</h2>
+    <label>Theme</label>
+    <div class="theme-row" id="themeRow">
+      <button class="theme-swatch" data-theme="blue" onclick="applyTheme('blue')" title="Blue / Dark Grey (default)"><span class="swatch-back" style="background:#0d1117"></span><span class="swatch-front" style="background:#58a6ff"></span></button>
+      <button class="theme-swatch" data-theme="green" onclick="applyTheme('green')" title="Green / Charcoal"><span class="swatch-back" style="background:#0b1210"></span><span class="swatch-front" style="background:#34d399"></span></button>
+      <button class="theme-swatch" data-theme="purple" onclick="applyTheme('purple')" title="Purple / Black"><span class="swatch-back" style="background:#0a0a12"></span><span class="swatch-front" style="background:#a78bfa"></span></button>
+      <button class="theme-swatch" data-theme="orange" onclick="applyTheme('orange')" title="Orange / Deep Navy"><span class="swatch-back" style="background:#0d1420"></span><span class="swatch-front" style="background:#ff9f43"></span></button>
+      <button class="theme-swatch" data-theme="teal" onclick="applyTheme('teal')" title="Teal / Slate"><span class="swatch-back" style="background:#0b1316"></span><span class="swatch-front" style="background:#2dd4bf"></span></button>
+    </div>
     <label>API URL</label>
     <input type="text" id="setApiUrl" value="http://localhost:8000">
     <label>System Prompt</label>
@@ -3692,6 +3724,7 @@ document.addEventListener('click', (e) => {
   if (sb.classList.contains('open') && !sb.contains(e.target) && !e.target.classList.contains('sidebar-toggle')) sb.classList.remove('open');
 });
 document.getElementById('settingsModal').addEventListener('click', (e) => { if (e.target === document.getElementById('settingsModal')) closeSettings(); });
+applyTheme(localStorage.getItem('chat_theme')||'blue', false);   // sync theme swatch active state (head already painted it)
 updateSysPromptBar(); updateTokenBar();
 </script>
 </body>

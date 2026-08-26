@@ -18,6 +18,7 @@ A llama.cpp-style chat window for [vLLM](https://github.com/vllm-project/vllm)'s
 - **History** — sidebar with localStorage persistence, thread titles, per-thread model badges
 - **Thread menu** — ⋯ menu on every conversation: pin (favorites float to the top with a pin glyph), export the thread as a .txt, or delete
 - **Edit messages** — ✎ on user messages: edit an old prompt and re-send; if a response existed, the old answer is kept and a ‹ n/N › pill flips between versions (llama.cpp/Qwen style, persists across reloads)
+- **Themes** — five two-color themes (Blue / Dark Grey, Green / Charcoal, Purple / Black, Orange / Deep Navy, Teal / Slate) in the settings modal: a single click re-themes the whole UI instantly and your choice persists across reloads
 
 ## Run
 
