@@ -242,6 +242,9 @@ h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .history-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:6px;cursor:pointer;transition:background .15s;min-width:0;position:relative}
 .history-item.pinned{background:var(--accentSoft)}
 .history-item:hover{background:var(--bg3)}
+.history-item.active{background:var(--accentBg);box-shadow:inset 2px 0 0 var(--accent)}
+.history-item.active:hover{background:var(--accentBg)}
+.history-item.active .title{color:var(--accent)}
 .history-item .title{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px;flex:1;min-width:0}
 .history-item .title .pin-ic{vertical-align:-1px;margin-right:4px;color:var(--accent)}
 .history-item .date{font-size:11px;color:var(--dim)}
@@ -296,7 +299,7 @@ applyTheme(localStorage.getItem('chat_theme')||'blue',false);
     <button class="new-chat-btn" onclick="newChat();toggleSidebar();" title="Start a new chat">＋ New Chat</button>
   </div>
   <div class="sidebar-body" id="chatHistory"></div>
-  <div class="sidebar-footer">vLLM Chat v1.6.0</div>
+  <div class="sidebar-footer">vLLM Chat v1.6.1</div>
 </div>
 
 <div class="header">
@@ -2732,7 +2735,7 @@ function loadHistory() {
   // existing recency order (newest first)
   const sorted = [...chats.filter(c => c.pinned), ...chats.filter(c => !c.pinned)];
   container.innerHTML = sorted.map(c => `
-    <div class="history-item${c.pinned ? ' pinned' : ''}" onclick="loadConversation('${c.id}');toggleSidebar();">
+    <div class="history-item${c.pinned ? ' pinned' : ''}${c.id === currentChatId ? ' active' : ''}" onclick="loadConversation('${c.id}');toggleSidebar();">
       <div style="flex:1;min-width:0">
         <div class="title">${c.pinned ? '<span class="pin-ic">' + ICON_PIN + '</span>' : ''}${escHtml(threadTitle(c.title))}</div>
         <div class="date">${formatDate(c.created)}</div>
