@@ -299,7 +299,7 @@ applyTheme(localStorage.getItem('chat_theme')||'blue',false);
     <button class="new-chat-btn" onclick="newChat();toggleSidebar();" title="Start a new chat">＋ New Chat</button>
   </div>
   <div class="sidebar-body" id="chatHistory"></div>
-  <div class="sidebar-footer">vLLM Chat v1.6.1</div>
+  <div class="sidebar-footer">vLLM Chat v1.6.2</div>
 </div>
 
 <div class="header">
@@ -420,6 +420,18 @@ applyTheme(localStorage.getItem('chat_theme')||'blue',false);
     <div class="btn-row">
       <button class="btn" onclick="closeSettings()">Cancel</button>
       <button class="btn primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="renameModal">
+  <div class="modal">
+    <h2>✎ Rename Chat</h2>
+    <label>Title</label>
+    <input type="text" id="renameInput" maxlength="120" placeholder="Chat title" onkeydown="if(event.key==='Enter')saveRename()">
+    <div class="btn-row">
+      <button class="btn" onclick="closeRename()">Cancel</button>
+      <button class="btn primary" onclick="saveRename()">Save</button>
     </div>
   </div>
 </div>
@@ -2743,6 +2755,7 @@ function loadHistory() {
       <div class="hi-actions">
         <button class="menu-btn" onclick="event.stopPropagation();toggleChatMenu('${c.id}');" title="Chat options">${ICON_MORE}</button>
         <div class="chat-menu" id="chatMenu_${c.id}">
+          <button class="chat-menu-item" onclick="event.stopPropagation();renameChat('${c.id}');">${ICON_EDIT}<span>Rename</span></button>
           <button class="chat-menu-item" onclick="event.stopPropagation();togglePin('${c.id}');">${c.pinned ? ICON_UNPIN : ICON_PIN}<span>${c.pinned ? 'Unpin' : 'Pin'}</span></button>
           <button class="chat-menu-item" onclick="event.stopPropagation();exportThread('${c.id}');">${ICON_DL}<span>Export chat</span></button>
           <button class="chat-menu-item danger" onclick="event.stopPropagation();deleteChat('${c.id}');">${ICON_TRASH}<span>Delete</span></button>
@@ -2777,8 +2790,9 @@ function saveCurrentChat() {
     existing = { id: currentChatId, title: '', created: Date.now(), messages: [] };
     chats.unshift(existing);
   }
-  existing.title = threadTitle(conversationHistory.find(m => m.role === 'user')?.content);
   existing.messages = JSON.parse(JSON.stringify(conversationHistory));
+  // Custom titles (Rename menu) are kept; only auto-title from the first user message when not renamed
+  if (!existing.renamed) existing.title = threadTitle(conversationHistory.find(m => m.role === 'user')?.content);
   existing.systemPrompt = SYSTEM_PROMPT;   // per-thread system prompt (2026-08-18)
   let serialized = JSON.stringify(chats);
   if (serialized.length > 4500000) {
@@ -2820,12 +2834,53 @@ function deleteChat(chatId) {
   loadHistory();
 }
 
+// ── Rename chat (thread menu) — modal with Save/Cancel, sets a custom title ──
+let renameChatId = null;
+function renameChat(chatId) {
+  const chats = JSON.parse(localStorage.getItem('chat_history') || '[]');
+  const chat = chats.find(c => c.id === chatId);
+  if (!chat) return;
+  closeChatMenus();
+  renameChatId = chatId;
+  document.getElementById('renameInput').value = chat.title || '';
+  document.getElementById('renameModal').classList.add('show');
+  const inp = document.getElementById('renameInput');
+  inp.focus(); inp.select();
+}
+function closeRename() {
+  document.getElementById('renameModal').classList.remove('show');
+  renameChatId = null;
+}
+function saveRename() {
+  const title = document.getElementById('renameInput').value.trim();
+  if (!renameChatId) { closeRename(); return; }
+  const chats = JSON.parse(localStorage.getItem('chat_history') || '[]');
+  const chat = chats.find(c => c.id === renameChatId);
+  if (chat) {
+    if (title) {
+      chat.title = title;
+      chat.renamed = true;                       // saveCurrentChat must not clobber it
+    } else {
+      // empty title = revert to auto-title from the thread's first user message
+      delete chat.renamed;
+      const firstUser = (chat.messages || []).find(m => m.role === 'user')?.content;
+      chat.title = firstUser ? threadTitle(firstUser) : '';
+    }
+    localStorage.setItem('chat_history', JSON.stringify(chats));
+  }
+  renameChatId = null;
+  closeRename();
+  loadHistory();
+  showToast(title ? 'Chat renamed' : 'Title reset');
+}
+
 // ── Thread menu (pin / export / delete) ──
 const ICON_MORE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
 const ICON_PIN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/></svg>';
 const ICON_UNPIN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/><line x1="2" y1="2" x2="22" y2="22"/></svg>';
 const ICON_DL = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
 const ICON_TRASH = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+const ICON_EDIT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
 
 function toggleChatMenu(chatId) {
   const menu = document.getElementById('chatMenu_' + chatId);
@@ -3727,6 +3782,7 @@ document.addEventListener('click', (e) => {
   if (sb.classList.contains('open') && !sb.contains(e.target) && !e.target.classList.contains('sidebar-toggle')) sb.classList.remove('open');
 });
 document.getElementById('settingsModal').addEventListener('click', (e) => { if (e.target === document.getElementById('settingsModal')) closeSettings(); });
+document.getElementById('renameModal').addEventListener('click', (e) => { if (e.target === document.getElementById('renameModal')) closeRename(); });
 applyTheme(localStorage.getItem('chat_theme')||'blue', false);   // sync theme swatch active state (head already painted it)
 updateSysPromptBar(); updateTokenBar();
 </script>
